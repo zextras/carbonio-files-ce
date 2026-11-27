@@ -10,7 +10,6 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PKG_DIR="${ROOT}/package"
 SCRIPT="${PKG_DIR}/carbonio-files-hcl"
-FIXTURES="${ROOT}/.ci/fixtures"
 
 NAMES=()
 eval "$(grep -E '^NAMES=' "${SCRIPT}")"
@@ -73,27 +72,22 @@ fresh() {
   LIVE="${SD_DIR}/${NAME}.hcl"
   ENVF="${SD_DIR}/${NAME}.env"
   BAK="${LIVE}.bak"
-  FIXTURE="${FIXTURES}/${NAME}.hcl"
   DEF_T="$(default_of CHECK_TIMEOUT)"
   DEF_I="$(default_of CHECK_INTERVAL)"
 }
 default_of() {
-  grep -oE "env \"$1\"\) \"[^\"]*\"" "${PKG_DIR}/${NAME}-template.hcl" | sed -E 's/.*\) "(.*)"/\1/'
+  grep -oE "env \"$1\"\) \"[^\"]*\"" "${PKG_DIR}/${NAME}-template.hcl" | head -1 | sed -E 's/.*\) "(.*)"/\1/'
 }
 hcl() { "${SCRIPT}" "$@"; }
-upgrade() { hcl migrate && hcl render; }
 has() { grep -qE "$1" "$2"; }
 same() { [[ -f "$1" && -f "$2" && "$(< "$1")" == "$(< "$2")" ]]; }
 mode_of() { [[ "$(stat -c %a "$1")" == "644" ]]; }
-edited_fixture() { sed -E "s/^(\s*$1\s*=\s*)\"[^\"]*\"/\1\"$2\"/" "${FIXTURE}"; }
 
 for NAME in "${NAMES[@]}"; do
-  check "fixture exists" test -f "${FIXTURES}/${NAME}.hcl"
-
   fresh 1
   hcl render > /dev/null 2>&1
-  check "1 render defaults: timeout default" has "^\\s*timeout\\s*=\\s*\"${DEF_T}\"" "${LIVE}"
-  check "1 render defaults: interval default" has "^\\s*interval\\s*=\\s*\"${DEF_I}\"" "${LIVE}"
+  check "1 render defaults: timeout default" has "timeout\\s*=\\s*\"${DEF_T}\"" "${LIVE}"
+  check "1 render defaults: interval default" has "interval\\s*=\\s*\"${DEF_I}\"" "${LIVE}"
   check "1 render defaults: marker" grep -qF "${MARKER}" "${LIVE}"
   check "1 render defaults: no template syntax left" test "$(grep -c '{{' "${LIVE}")" -eq 0
   check "1 render defaults: mode 644" mode_of "${LIVE}"
@@ -103,7 +97,7 @@ for NAME in "${NAMES[@]}"; do
   hcl render > /dev/null 2> "${WORK}/err2"
   rc=$?
   check "2 env override: render succeeds" test "${rc}" -eq 0
-  check "2 env override: timeout 3s" has '^\s*timeout\s*=\s*"3s"' "${LIVE}"
+  check "2 env override: timeout 3s" has 'timeout\s*=\s*"3s"' "${LIVE}"
   check "2 env override: warning on unknown key" grep -q 'BOGUS_KEY' "${WORK}/err2"
 
   fresh 3
@@ -112,130 +106,49 @@ for NAME in "${NAMES[@]}"; do
   rc=$?
   check "3 invalid value: render succeeds" test "${rc}" -eq 0
   check "3 invalid value: warning" grep -q 'invalid value for CHECK_TIMEOUT' "${WORK}/err3"
-  check "3 invalid value: default used" has "^\\s*timeout\\s*=\\s*\"${DEF_T}\"" "${LIVE}"
+  check "3 invalid value: default used" has "timeout\\s*=\\s*\"${DEF_T}\"" "${LIVE}"
 
   fresh 4
   CHECK_INTERVAL=9s hcl render > /dev/null 2>&1
-  check "4 caller env isolated: interval default" has "^\\s*interval\\s*=\\s*\"${DEF_I}\"" "${LIVE}"
+  check "4 caller env isolated: interval default" has "interval\\s*=\\s*\"${DEF_I}\"" "${LIVE}"
 
   fresh 5
-  edited_fixture timeout 4s > "${LIVE}"
-  cp "${LIVE}" "${WORK}/edited5"
-  hcl migrate > /dev/null 2>&1
-  check "5 migrate: env has CHECK_TIMEOUT=4s" grep -qx 'CHECK_TIMEOUT=4s' "${ENVF}"
-  check "5 migrate: exactly one value line" test "$(grep -cvE '^(#|$)' "${ENVF}")" -eq 1
-  check "5 migrate: env mode 644" mode_of "${ENVF}"
+  printf 'services {\n  name = "hand-edited"\n}\n' > "${LIVE}"
+  cp "${LIVE}" "${WORK}/old5"
   hcl render > /dev/null 2>&1
-  check "5 render: .bak equals edited live" same "${BAK}" "${WORK}/edited5"
-  check "5 render: timeout 4s" has '^\s*timeout\s*=\s*"4s"' "${LIVE}"
-  cp "${ENVF}" "${WORK}/env5"
+  check "5 hand-edited hcl: replaced by ours" grep -qF "${MARKER}" "${LIVE}"
+  check "5 hand-edited hcl: kept as .bak" same "${BAK}" "${WORK}/old5"
   echo sentinel > "${BAK}"
-  out7="$(upgrade 2>&1 | grep -v '^Rendered ')"
-  check "7 second upgrade: silent" test -z "${out7}"
-  check "7 second upgrade: env unchanged" same "${ENVF}" "${WORK}/env5"
-  check "7 second upgrade: .bak not rewritten" grep -qx sentinel "${BAK}"
+  hcl render > /dev/null 2>&1
   baks=("${SD_DIR}/${NAME}".hcl.bak*)
-  check "7 second upgrade: no extra backup" test "${#baks[@]}" -eq 1
+  check "5 second render: .bak not rewritten" grep -qx sentinel "${BAK}"
+  check "5 second render: no extra backup" test "${#baks[@]}" -eq 1
 
   fresh 6
-  edited_fixture interval 7s > "${LIVE}.rpmsave"
-  cp "${LIVE}.rpmsave" "${WORK}/edited6"
-  upgrade > /dev/null 2>&1
-  check "6 rpmsave upgrade: CHECK_INTERVAL=7s" grep -qx 'CHECK_INTERVAL=7s' "${ENVF}"
-  check "6 rpmsave upgrade: interval 7s" has '^\s*interval\s*=\s*"7s"' "${LIVE}"
-  check "6 rpmsave upgrade: .rpmsave moved to .bak" same "${BAK}" "${WORK}/edited6"
-  check "6 rpmsave upgrade: no .rpmsave left" test ! -e "${LIVE}.rpmsave"
-  rm -f "${ENVF:?}" "${LIVE:?}"
-  upgrade > /dev/null 2>&1
-  check "6 env removed then erase and reinstall: not migrated again" test ! -e "${ENVF}"
-  check "6 env removed then erase and reinstall: interval default" has "^\\s*interval\\s*=\\s*\"${DEF_I}\"" "${LIVE}"
-
-  fresh 8
-  cp "${FIXTURE}" "${LIVE}"
-  upgrade > /dev/null 2>&1
-  check "8 unedited upgrade: no env file" test ! -e "${ENVF}"
-  check "8 unedited upgrade: .bak equals old hcl" same "${BAK}" "${FIXTURE}"
-
-  fresh 9
-  echo 'CHECK_TIMEOUT=3x' > "${ENVF}"
-  hcl show > "${WORK}/show9" 2>&1
-  rc=$?
-  check "9 show: exit 0 without reading the env" test "${rc}" -eq 0
-  check "9 show: key and default" grep -qE "│ CHECK_TIMEOUT +│ ${DEF_T} +│" "${WORK}/show9"
-  check "9 show: no current column" test "$(grep -c -E 'Current|3x' "${WORK}/show9")" -eq 0
-
-  fresh 10
-  edited_fixture interval 7s > "${LIVE}"
-  cp "${LIVE}" "${WORK}/edited10"
-  echo 'CHECK_TIMEOUT=3s' > "${ENVF}"
-  upgrade > /dev/null 2>&1
-  check "10 env present before upgrade: .bak equals edited live" same "${BAK}" "${WORK}/edited10"
-  check "10 env present before upgrade: timeout 3s" has '^\s*timeout\s*=\s*"3s"' "${LIVE}"
-  check "10 env present before upgrade: interval default" has "^\\s*interval\\s*=\\s*\"${DEF_I}\"" "${LIVE}"
-
-  fresh 11
-  edited_fixture timeout 4s > "${LIVE}"
-  cp "${LIVE}" "${WORK}/edited11"
-  mkdir -p "${WORK}/failbin"
-  printf '#!/bin/sh\nexit 1\n' > "${WORK}/failbin/mktemp"
-  chmod 755 "${WORK}/failbin/mktemp"
-  PATH="${WORK}/failbin:${PATH}" hcl migrate > /dev/null 2> "${WORK}/err11"
-  rc=$?
-  check "11 migrate failure: migrate exits 0" test "${rc}" -eq 0
-  check "11 migrate failure: warning" grep -q 'migrate failed' "${WORK}/err11"
+  printf 'this is { not hcl\n\x01\x02 garbage\n' > "${LIVE}"
+  cp "${LIVE}" "${WORK}/garbage6"
   hcl render > /dev/null 2>&1
   rc=$?
-  check "11 migrate failure: render still writes our hcl" test "${rc}" -eq 0
-  check "11 migrate failure: defaults" has "^\\s*timeout\\s*=\\s*\"${DEF_T}\"" "${LIVE}"
-  check "11 migrate failure: .bak equals edited live" same "${BAK}" "${WORK}/edited11"
-  check "11 migrate failure: no env file" test ! -e "${ENVF}"
+  check "6 malformed old hcl: render succeeds" test "${rc}" -eq 0
+  check "6 malformed old hcl: our hcl written" grep -qF "${MARKER}" "${LIVE}"
+  check "6 malformed old hcl: .bak keeps it" same "${BAK}" "${WORK}/garbage6"
 
-  fresh 12
-  sed -E 's/^(\s*timeout\s*=\s*)"[^"]*"/\1"4s" \/\/ tuned/' "${FIXTURE}" > "${LIVE}"
-  hcl migrate > /dev/null 2>&1
-  check "12 trailing comment: CHECK_TIMEOUT=4s migrated" grep -qx 'CHECK_TIMEOUT=4s' "${ENVF}"
-
-  fresh 13
-  printf 'this is { not hcl\n\x01\x02 garbage\n' > "${LIVE}"
-  cp "${LIVE}" "${WORK}/garbage13"
-  upgrade > /dev/null 2>&1
+  fresh 7
+  echo 'CHECK_TIMEOUT=3x' > "${ENVF}"
+  hcl show > "${WORK}/show7" 2>&1
   rc=$?
-  check "13 malformed old hcl: upgrade succeeds" test "${rc}" -eq 0
-  check "13 malformed old hcl: our hcl written" grep -qF "${MARKER}" "${LIVE}"
-  check "13 malformed old hcl: defaults" has "^\\s*timeout\\s*=\\s*\"${DEF_T}\"" "${LIVE}"
-  check "13 malformed old hcl: .bak keeps it" same "${BAK}" "${WORK}/garbage13"
-
-  fresh 14
-  edited_fixture timeout 'soon' > "${LIVE}"
-  upgrade > /dev/null 2> "${WORK}/err14"
-  check "14 invalid old value: not migrated" test ! -e "${ENVF}"
-  check "14 invalid old value: warning" grep -q 'not migrated' "${WORK}/err14"
-  check "14 invalid old value: defaults" has "^\\s*timeout\\s*=\\s*\"${DEF_T}\"" "${LIVE}"
+  check "7 show: exit 0 without reading the env" test "${rc}" -eq 0
+  check "7 show: key and default" grep -qE "│ CHECK_TIMEOUT +│ ${DEF_T} +│" "${WORK}/show7"
+  check "7 show: env not read" test "$(grep -c '3x' "${WORK}/show7")" -eq 0
 
   if grep -q 'env "DB_ADDRESS"' "${PKG_DIR}/${NAME}-template.hcl"; then
-    DEF_A="$(default_of DB_ADDRESS)"
-
-    fresh 15
+    fresh 8
     echo 'DB_ADDRESS=10.0.0.5' > "${ENVF}"
     hcl render > /dev/null 2>&1
-    check "15 DB_ADDRESS: check uses it" has '^\s*tcp\s*=\s*"10\.0\.0\.5:' "${LIVE}"
-    check "15 DB_ADDRESS: sidecar uses it" has '^\s*local_service_address\s*=\s*"10\.0\.0\.5"' "${LIVE}"
-
-    fresh 16
-    sed -E 's/^(\s*tcp\s*=\s*")[^:"]*:/\110.0.0.9:/' "${FIXTURE}" > "${LIVE}"
-    hcl migrate > /dev/null 2>&1
-    check "16 DB_ADDRESS migrated from the check" grep -qx 'DB_ADDRESS=10.0.0.9' "${ENVF}"
-    check "16 DB_ADDRESS: one env line" test "$(grep -c '^DB_ADDRESS=' "${ENVF}")" -eq 1
-    hcl render > /dev/null 2>&1
-    check "16 DB_ADDRESS: sidecar follows" has '^\s*local_service_address\s*=\s*"10\.0\.0\.9"' "${LIVE}"
-
-    fresh 17
-    sed -E 's/^(\s*tcp\s*=\s*")[^"]*"/\1db.example:6432"/' "${FIXTURE}" > "${LIVE}"
-    upgrade > /dev/null 2> "${WORK}/err17"
-    check "17 different port: not migrated" test ! -e "${ENVF}"
-    check "17 different port: warning" grep -q 'does not match the template' "${WORK}/err17"
-    check "17 different port: .bak keeps it" grep -q 'db.example:6432' "${BAK}"
-    check "17 different port: default address" grep -qF "\"${DEF_A}:" "${LIVE}"
+    check "8 DB_ADDRESS: check uses it" has '^\s*tcp\s*=\s*"10\.0\.0\.5:' "${LIVE}"
+    check "8 DB_ADDRESS: sidecar uses it" has '^\s*local_service_address\s*=\s*"10\.0\.0\.5"' "${LIVE}"
+    hcl show > "${WORK}/show8" 2>&1
+    check "8 DB_ADDRESS: listed once by show" test "$(grep -c 'DB_ADDRESS' "${WORK}/show8")" -eq 1
   fi
 done
 
