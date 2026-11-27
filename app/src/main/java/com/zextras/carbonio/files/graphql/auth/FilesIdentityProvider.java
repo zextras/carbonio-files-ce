@@ -8,6 +8,7 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
+import com.zextras.carbonio.files.graphql.spi.UserAccessPolicy;
 import io.quarkus.security.AuthenticationFailedException;
 import io.quarkus.security.identity.AuthenticationRequestContext;
 import io.quarkus.security.identity.IdentityProvider;
@@ -37,10 +38,12 @@ public class FilesIdentityProvider implements IdentityProvider<FilesAuthenticati
   private static final Logger logger = LoggerFactory.getLogger(FilesIdentityProvider.class);
 
   private final UserRepository userRepository;
+  private final UserAccessPolicy userAccessPolicy;
 
   @Inject
-  public FilesIdentityProvider(UserRepository userRepository) {
+  public FilesIdentityProvider(UserRepository userRepository, UserAccessPolicy userAccessPolicy) {
     this.userRepository = userRepository;
+    this.userAccessPolicy = userAccessPolicy;
   }
 
   @Override
@@ -79,6 +82,9 @@ public class FilesIdentityProvider implements IdentityProvider<FilesAuthenticati
           "Failed to authorize request",
           request,
           "Files feature is not enabled for user");
+    }
+    if (!userAccessPolicy.isAllowed(user)) {
+      throw reject(ctx, 403, "Failed to authorize request", request, "Access not allowed for user");
     }
 
     Map<String, Object> attrs = new HashMap<>();

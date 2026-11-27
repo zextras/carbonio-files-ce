@@ -15,6 +15,7 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
+import com.zextras.carbonio.files.graphql.spi.UserAccessPolicy;
 import io.quarkus.security.AuthenticationFailedException;
 import io.quarkus.security.identity.AuthenticationRequestContext;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -34,6 +35,7 @@ class FilesIdentityProviderTest {
   private static final String URI = "/graphql/";
 
   private UserRepository userRepository;
+  private UserAccessPolicy userAccessPolicy;
   private RoutingContext routingContext;
   private AuthenticationRequestContext requestContext;
   private FilesAuthenticationRequest request;
@@ -42,6 +44,8 @@ class FilesIdentityProviderTest {
   @BeforeEach
   void setUp() {
     userRepository = mock(UserRepository.class);
+    userAccessPolicy = mock(UserAccessPolicy.class);
+    when(userAccessPolicy.isAllowed(any())).thenReturn(true);
     routingContext = mock(RoutingContext.class);
     requestContext = mock(AuthenticationRequestContext.class);
     when(requestContext.runBlocking(any())).thenReturn(Uni.createFrom().nullItem());
@@ -49,7 +53,7 @@ class FilesIdentityProviderTest {
         (FilesAuthenticationRequest)
             HttpSecurityUtils.setRoutingContextAttribute(
                 new FilesAuthenticationRequest(COOKIES, URI), routingContext);
-    provider = new FilesIdentityProvider(userRepository);
+    provider = new FilesIdentityProvider(userRepository, userAccessPolicy);
   }
 
   private Supplier<SecurityIdentity> captureBlockingSupplier() {
@@ -67,6 +71,29 @@ class FilesIdentityProviderTest {
     when(user.getCarbonioAttributes()).thenReturn(attributes);
     when(user.getEmail()).thenReturn("user@example.com");
     return user;
+  }
+
+  @Test
+  void givenThePolicyDeniesTheUserWhenResolvingThen403IsStored() {
+    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
+    UserMyself user =
+        user(UserStatus.ACTIVE, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
+    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.of(user));
+    when(userAccessPolicy.isAllowed(user)).thenReturn(false);
+
+    assertThatThrownBy(supplier::get).isInstanceOf(AuthenticationFailedException.class);
+    verify(routingContext).put(FilesGraphQLAuthMechanism.CTX_STATUS, 403);
+  }
+
+  @Test
+  void givenThePolicyAllowsTheUserWhenResolvingThenTheIdentityIsReturned() {
+    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
+    UserMyself user =
+        user(UserStatus.ACTIVE, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
+    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.of(user));
+
+    assertThat(supplier.get().getPrincipal().getName()).isEqualTo("user@example.com");
+    verify(userAccessPolicy).isAllowed(user);
   }
 
   @Test

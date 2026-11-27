@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
+import com.zextras.carbonio.files.graphql.spi.UserAccessPolicy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
@@ -34,10 +35,27 @@ public class BlobAuthenticator {
   private static final Logger logger = LoggerFactory.getLogger(BlobAuthenticator.class);
 
   private final UserRepository userRepository;
+  private final UserAccessPolicy userAccessPolicy;
 
   @Inject
-  public BlobAuthenticator(UserRepository userRepository) {
+  public BlobAuthenticator(UserRepository userRepository, UserAccessPolicy userAccessPolicy) {
     this.userRepository = userRepository;
+    this.userAccessPolicy = userAccessPolicy;
+  }
+
+  /**
+   * Same as {@link #requireAuthenticatedUser(String, String)} and additionally enforces the {@link
+   * UserAccessPolicy}.
+   *
+   * @throws WebApplicationException with status 401 if authentication fails, 403 if the user is
+   *     not entitled or the policy denies access
+   */
+  public UserMyself requireUser(String cookieHeader, String zmAuthToken) {
+    UserMyself user = requireAuthenticatedUser(cookieHeader, zmAuthToken);
+    if (!userAccessPolicy.isAllowed(user)) {
+      throw forbidden("Access not allowed for user");
+    }
+    return user;
   }
 
   /**
@@ -50,7 +68,7 @@ public class BlobAuthenticator {
    * @return the authenticated {@link UserMyself}
    * @throws WebApplicationException with status 401 if authentication fails
    */
-  public UserMyself requireUser(String cookieHeader, String zmAuthToken) {
+  public UserMyself requireAuthenticatedUser(String cookieHeader, String zmAuthToken) {
     if (zmAuthToken == null || zmAuthToken.isBlank()) {
       throw unauthorized("Missing cookies");
     }
