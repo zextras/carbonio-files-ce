@@ -47,8 +47,8 @@ public class BlobAuthenticator {
    * Same as {@link #requireAuthenticatedUser(String, String)} and additionally enforces the {@link
    * UserAccessPolicy}.
    *
-   * @throws WebApplicationException with status 401 if authentication fails, 403 if the user is
-   *     not entitled or the policy denies access
+   * @throws WebApplicationException with status 401 if authentication fails, 403 if the user is not
+   *     entitled or the policy denies access
    */
   public UserMyself requireUser(String cookieHeader, String zmAuthToken) {
     UserMyself user = requireAuthenticatedUser(cookieHeader, zmAuthToken);
