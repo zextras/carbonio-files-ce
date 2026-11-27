@@ -9,6 +9,12 @@ if [[ $(id -u) -ne 0 ]]; then
   exit 1
 fi
 
+carbonio-files-hcl migrate || :
+if ! carbonio-files-hcl render; then
+  echo "Cannot render /etc/zextras/service-discover/carbonio-files.hcl; leaving pending-setup to be retried."
+  exit 1
+fi
+
 # Decrypt the bootstrap token, asking the password to the sys admin
 # --setup checks for SETUP_CONSUL_TOKEN env variable and uses it
 # to avoid re-asking for the password
@@ -33,6 +39,7 @@ if [[ "${SETUP_EXIT_CODE}" != "0" ]]; then
   # Limit secret visibility as much as possible
   export -n SETUP_CONSUL_TOKEN
   echo "Setup failed (exit ${SETUP_EXIT_CODE}); leaving pending-setup to be retried."
+  carbonio-files-hcl show || :
   exit "${SETUP_EXIT_CODE}"
 fi
 
@@ -52,3 +59,6 @@ export -n SETUP_CONSUL_TOKEN
 
 systemctl restart carbonio-files.service
 systemctl restart carbonio-files-sidecar.service
+RESTART_EXIT_CODE="$?"
+carbonio-files-hcl show || :
+exit "${RESTART_EXIT_CODE}"
