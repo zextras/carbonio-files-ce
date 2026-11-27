@@ -211,6 +211,32 @@ for NAME in "${NAMES[@]}"; do
   check "14 invalid old value: not migrated" test ! -e "${ENVF}"
   check "14 invalid old value: warning" grep -q 'not migrated' "${WORK}/err14"
   check "14 invalid old value: defaults" has "^\\s*timeout\\s*=\\s*\"${DEF_T}\"" "${LIVE}"
+
+  if grep -q 'env "DB_ADDRESS"' "${PKG_DIR}/${NAME}-template.hcl"; then
+    DEF_A="$(default_of DB_ADDRESS)"
+
+    fresh 15
+    echo 'DB_ADDRESS=10.0.0.5' > "${ENVF}"
+    hcl render > /dev/null 2>&1
+    check "15 DB_ADDRESS: check uses it" has '^\s*tcp\s*=\s*"10\.0\.0\.5:' "${LIVE}"
+    check "15 DB_ADDRESS: sidecar uses it" has '^\s*local_service_address\s*=\s*"10\.0\.0\.5"' "${LIVE}"
+
+    fresh 16
+    sed -E 's/^(\s*tcp\s*=\s*")[^:"]*:/\110.0.0.9:/' "${FIXTURE}" > "${LIVE}"
+    hcl migrate > /dev/null 2>&1
+    check "16 DB_ADDRESS migrated from the check" grep -qx 'DB_ADDRESS=10.0.0.9' "${ENVF}"
+    check "16 DB_ADDRESS: one env line" test "$(grep -c '^DB_ADDRESS=' "${ENVF}")" -eq 1
+    hcl render > /dev/null 2>&1
+    check "16 DB_ADDRESS: sidecar follows" has '^\s*local_service_address\s*=\s*"10\.0\.0\.9"' "${LIVE}"
+
+    fresh 17
+    sed -E 's/^(\s*tcp\s*=\s*")[^"]*"/\1db.example:6432"/' "${FIXTURE}" > "${LIVE}"
+    upgrade > /dev/null 2> "${WORK}/err17"
+    check "17 different port: not migrated" test ! -e "${ENVF}"
+    check "17 different port: warning" grep -q 'does not match the template' "${WORK}/err17"
+    check "17 different port: .bak keeps it" grep -q 'db.example:6432' "${BAK}"
+    check "17 different port: default address" grep -qF "\"${DEF_A}:" "${LIVE}"
+  fi
 done
 
 exit "${FAILED}"

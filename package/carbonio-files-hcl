@@ -59,6 +59,8 @@ BAK=""
 KEYS=()
 DEFAULTS=()
 KPATHS=()
+KRAWS=()
+KORDS=()
 declare -A PROVIDED=()
 tmp=""
 FAILED=0
@@ -71,20 +73,41 @@ select_name() {
   KEYS=()
   DEFAULTS=()
   KPATHS=()
+  KRAWS=()
+  KORDS=()
   PROVIDED=()
 }
 
 discover() {
-  local p v
+  local p v raw ord
   [[ -r "${TEMPLATE}" ]] || { echo "Template not found: ${TEMPLATE}" >&2; return 1; }
   while IFS=$'\t' read -r p v; do
+    raw="${v}"
+    ord=0
     while [[ "${v}" =~ env\ \"([A-Za-z0-9_]+)\"\)\ \"([^\"]*)\" ]]; do
+      ord=$((ord + 1))
       KEYS+=("${BASH_REMATCH[1]}")
       DEFAULTS+=("${BASH_REMATCH[2]}")
       KPATHS+=("${p}")
+      KRAWS+=("${raw}")
+      KORDS+=("${ord}")
       v="${v#*"${BASH_REMATCH[0]}"}"
     done
   done < <(hcl_paths < "${TEMPLATE}")
+}
+
+ere_escape() {
+  printf '%s' "$1" | sed 's/[][\.*^$+?(){}|/]/\\&/g'
+}
+
+value_regex() {
+  local rest="$1" re="^" pre
+  while [[ "${rest}" =~ \{\{[^}]*\}\} ]]; do
+    pre="${rest%%"${BASH_REMATCH[0]}"*}"
+    re+="$(ere_escape "${pre}")(.*)"
+    rest="${rest#*"${BASH_REMATCH[0]}"}"
+  done
+  printf '%s' "${re}$(ere_escape "${rest}")\$"
 }
 
 index_of() {
@@ -102,6 +125,8 @@ valid_value() {
   local def="$1" val="$2"
   if [[ "${def}" =~ ${DURATION_RE} ]]; then
     [[ "${val}" =~ ${DURATION_RE} ]]
+  elif [[ "${def}" =~ ^[0-9]+(\.[0-9]+){3}$ ]]; then
+    [[ "${val}" =~ ^[A-Za-z0-9._:-]+$ ]]
   elif [[ "${def}" =~ ^[0-9]+$ ]]; then
     [[ "${val}" =~ ^[0-9]+$ ]]
   else
@@ -139,8 +164,9 @@ load_env() {
 }
 
 migrate_one() {
-  local source="" i val key old
+  local source="" i val key old re
   local -a collected=()
+  local -A seen=()
   [[ -f "${ENVFILE}" ]] && return 0
   discover
   if [[ -f "${LIVE}" ]]; then
@@ -153,12 +179,21 @@ migrate_one() {
   fi
   old="$(hcl_paths < "${source}")"
   for i in "${!KEYS[@]}"; do
+    [[ -v "seen[${KEYS[i]}]" ]] && continue
     val="$(awk -F'\t' -v p="${KPATHS[i]}" '$1 == p { print $2; exit }' <<< "${old}")"
-    [[ -n "${val}" && "${val}" != "${DEFAULTS[i]}" ]] || continue
+    [[ -n "${val}" ]] || continue
+    re="$(value_regex "${KRAWS[i]}")"
+    if ! [[ "${val}" =~ ${re} ]]; then
+      warn "${source}: ${KPATHS[i]} = '${val}' does not match the template, ${KEYS[i]} not migrated"
+      continue
+    fi
+    val="${BASH_REMATCH[KORDS[i]]}"
+    [[ "${val}" != "${DEFAULTS[i]}" ]] || continue
     if ! valid_value "${DEFAULTS[i]}" "${val}"; then
       warn "${source}: invalid value for ${KEYS[i]}: '${val}', not migrated"
       continue
     fi
+    seen["${KEYS[i]}"]=1
     collected+=("${KEYS[i]}=${val}")
   done
   if ((${#collected[@]} > 0)); then
@@ -219,6 +254,7 @@ rep() {
 
 show_one() {
   local i w1=3 w2=7
+  local -A seen=()
   discover
   for i in "${!KEYS[@]}"; do
     ((${#KEYS[i]} > w1)) && w1=${#KEYS[i]}
@@ -231,6 +267,8 @@ show_one() {
   printf '│ %-*s │ %-*s │\n' "${w1}" Key "${w2}" Default
   echo "├─$(rep "${w1}")─┼─$(rep "${w2}")─┤"
   for i in "${!KEYS[@]}"; do
+    [[ -v "seen[${KEYS[i]}]" ]] && continue
+    seen["${KEYS[i]}"]=1
     printf '│ %-*s │ %-*s │\n' "${w1}" "${KEYS[i]}" "${w2}" "${DEFAULTS[i]}"
   done
   echo "└─$(rep "${w1}")─┴─$(rep "${w2}")─┘"
