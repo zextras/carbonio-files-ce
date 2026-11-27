@@ -71,7 +71,6 @@ fresh() {
   export SD_DIR
   LIVE="${SD_DIR}/${NAME}.hcl"
   ENVF="${SD_DIR}/${NAME}.env"
-  BAK="${LIVE}.bak"
   DEF_T="$(default_of CHECK_TIMEOUT)"
   DEF_I="$(default_of CHECK_INTERVAL)"
 }
@@ -80,7 +79,6 @@ default_of() {
 }
 hcl() { "${SCRIPT}" "$@"; }
 has() { grep -qE "$1" "$2"; }
-same() { [[ -f "$1" && -f "$2" && "$(< "$1")" == "$(< "$2")" ]]; }
 mode_of() { [[ "$(stat -c %a "$1")" == "644" ]]; }
 
 for NAME in "${NAMES[@]}"; do
@@ -114,24 +112,23 @@ for NAME in "${NAMES[@]}"; do
 
   fresh 5
   printf 'services {\n  name = "hand-edited"\n}\n' > "${LIVE}"
-  cp "${LIVE}" "${WORK}/old5"
   hcl render > /dev/null 2>&1
   check "5 hand-edited hcl: replaced by ours" grep -qF "${MARKER}" "${LIVE}"
-  check "5 hand-edited hcl: kept as .bak" same "${BAK}" "${WORK}/old5"
-  echo sentinel > "${BAK}"
-  hcl render > /dev/null 2>&1
-  baks=("${SD_DIR}/${NAME}".hcl.bak*)
-  check "5 second render: .bak not rewritten" grep -qx sentinel "${BAK}"
-  check "5 second render: no extra backup" test "${#baks[@]}" -eq 1
+  others=0
+  for f in "${SD_DIR}"/*; do
+    case "${f##*/}" in
+      templates | *.hcl | *.env) ;;
+      *) others=$((others + 1)) ;;
+    esac
+  done
+  check "5 hand-edited hcl: no backup left" test "${others}" -eq 0
 
   fresh 6
   printf 'this is { not hcl\n\x01\x02 garbage\n' > "${LIVE}"
-  cp "${LIVE}" "${WORK}/garbage6"
   hcl render > /dev/null 2>&1
   rc=$?
   check "6 malformed old hcl: render succeeds" test "${rc}" -eq 0
   check "6 malformed old hcl: our hcl written" grep -qF "${MARKER}" "${LIVE}"
-  check "6 malformed old hcl: .bak keeps it" same "${BAK}" "${WORK}/garbage6"
 
   fresh 7
   echo 'CHECK_TIMEOUT=3x' > "${ENVF}"
