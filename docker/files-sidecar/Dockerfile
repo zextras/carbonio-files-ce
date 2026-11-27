@@ -2,11 +2,15 @@
 ARG SIDECAR_IMAGE=registry.dev.zextras.com/dev/carbonio-sidecar:main
 FROM docker.io/library/eclipse-temurin:21-jre-jammy AS jre
 
-FROM --platform=$BUILDPLATFORM docker.io/library/alpine:3.20 AS hcl
-COPY package/carbonio-files-template.hcl /carbonio-files-template.hcl
-RUN sed -E 's/\{\{ or \(env "[A-Z0-9_]+"\) "([^"]*)" \}\}/\1/g' \
-    /carbonio-files-template.hcl > /carbonio-files.hcl \
-    && ! grep -q '{{' /carbonio-files.hcl
+FROM --platform=$BUILDPLATFORM docker.io/library/alpine:3.23 AS consul-template
+ARG TARGETARCH
+ARG CONSUL_TEMPLATE_VERSION=0.42.1
+RUN apk add --no-cache curl unzip && \
+    curl -fsSL -o /tmp/ct.zip "https://releases.hashicorp.com/consul-template/${CONSUL_TEMPLATE_VERSION}/consul-template_${CONSUL_TEMPLATE_VERSION}_linux_${TARGETARCH}.zip" && \
+    curl -fsSL -o /tmp/ct.sums "https://releases.hashicorp.com/consul-template/${CONSUL_TEMPLATE_VERSION}/consul-template_${CONSUL_TEMPLATE_VERSION}_SHA256SUMS" && \
+    echo "$(grep "_linux_${TARGETARCH}.zip" /tmp/ct.sums | cut -d' ' -f1)  /tmp/ct.zip" | sha256sum -c - && \
+    unzip -j /tmp/ct.zip consul-template -d /out && \
+    chmod +x /out/consul-template
 
 FROM ${SIDECAR_IMAGE}
 
@@ -15,7 +19,8 @@ ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH="/opt/java/openjdk/bin:${PATH}"
 
 # Service registration
-COPY --from=hcl /carbonio-files.hcl /consul/config/
+COPY --from=consul-template /out/consul-template /usr/local/bin/consul-template
+COPY package/carbonio-files-template.hcl /consul/templates/carbonio-files-template.hcl
 
 # Setup files
 COPY package/service-protocol.json /etc/carbonio/files/service-discover/
@@ -32,3 +37,6 @@ COPY --chmod=755 docker/files-sidecar/carbonio-files-setup /usr/local/bin/carbon
 ENV SERVICE_NAME=carbonio-files
 ENV SETUP_SCRIPT="carbonio-files-setup"
 ENV TOKEN_FILE=/etc/carbonio/files/service-discover/token
+
+COPY --chmod=755 docker/files-sidecar/carbonio-files-hcl-entrypoint /usr/local/bin/carbonio-files-hcl-entrypoint
+ENTRYPOINT ["carbonio-files-hcl-entrypoint"]
