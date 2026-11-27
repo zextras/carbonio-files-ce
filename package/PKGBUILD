@@ -82,7 +82,6 @@ _package_common() {
   install -Dm644 "${srcdir}/carbonio-files-template.hcl" \
     "${pkgdir}/etc/zextras/service-discover/templates/carbonio-files-template.hcl"
 
-
   install -Dm644 "${srcdir}/511-carbonio-files.sh" \
     "${pkgdir}/etc/zextras/pending-setups.d/511-carbonio-files.sh"
 
@@ -210,26 +209,10 @@ postinst() {
     systemctl enable carbonio-files-sidecar.service >/dev/null 2>&1 || :
   fi
 
-  if [ "$1" = "configure" ]; then
-    env -i PATH=/usr/bin:/bin bash -c 'set -a; [ -r "$1" ] && . "$1"; exec consul-template -once -template "$2:$3"' _ \
-      /etc/zextras/service-discover/carbonio-files.env \
-      /etc/zextras/service-discover/templates/carbonio-files-template.hcl \
-      /etc/zextras/service-discover/carbonio-files.hcl > /dev/null \
-      || echo "WARNING: cannot render /etc/zextras/service-discover/carbonio-files.hcl, run carbonio-files-setup"
-  fi
-
   echo "======================================================"
   echo "Carbonio Files installed successfully!                "
   echo "You must run pending-setups to configure it correctly."
   echo "======================================================"
-}
-
-posttrans() {
-  env -i PATH=/usr/bin:/bin bash -c 'set -a; [ -r "$1" ] && . "$1"; exec consul-template -once -template "$2:$3"' _ \
-    /etc/zextras/service-discover/carbonio-files.env \
-    /etc/zextras/service-discover/templates/carbonio-files-template.hcl \
-    /etc/zextras/service-discover/carbonio-files.hcl > /dev/null \
-    || echo "WARNING: cannot render /etc/zextras/service-discover/carbonio-files.hcl, run carbonio-files-setup"
 }
 
 prerm() {
